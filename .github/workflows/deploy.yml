@@ -1,0 +1,30 @@
+name: Deploy to Ubuntu Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to Lightsail
+        env:
+          USER: ${{ secrets.USER }}
+          IP: ${{ secrets.IP }}
+          KEY: ${{ secrets.KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${KEY}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "${IP}" >> ~/.ssh/known_hosts
+          ssh ${USER}@${IP} <<EOF
+          set -e
+          cd ~/ssh-chess || exit
+          git pull origin main || exit
+          docker-compose down || exit
+          docker-compose up -d --build || exit
+          docker system prune -f || exit
+          EOF
