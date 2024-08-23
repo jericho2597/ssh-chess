@@ -1,0 +1,38 @@
+services:
+  ssh-server:
+    build: ./ssh-server
+    ports:
+      - "8080:8080"
+    networks:
+      - internal
+    depends_on:
+      - chess-engine
+      - sqlite-db
+    volumes:
+      - sqlite-data:/data/db
+
+  sqlite-db:
+    build: ./sqlite-db
+    volumes:
+      - sqlite-data:/data/db
+
+  chess-engine:
+    build: ./chess-engine
+    networks:
+      - internal
+    depends_on:
+      - sqlite-db
+    volumes:
+      - sqlite-data:/data/db
+
+#  chessdotcom-sync:
+#    build: ./chessdotcom-sync
+#    networks:
+#      - internal
+
+volumes:
+  sqlite-data:
+
+networks:
+  internal:
+    driver: bridge
