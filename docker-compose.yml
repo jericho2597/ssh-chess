@@ -1,6 +1,9 @@
 services:
   ssh-server:
-    build: ./ssh-server
+    build: 
+      context: ./ssh-server
+      args:
+        SSH_CHESS_SERVER_KEY_PATH: ${SSH_CHESS_SERVER_KEY_PATH}
     ports:
       - "8080:8080"
     networks:

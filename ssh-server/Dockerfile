@@ -1,7 +1,10 @@
 FROM golang:1.20.5-alpine
 WORKDIR /app
 
-COPY ./certs/ssh_host_key /app/ssh_host_key
+ARG SSH_CHESS_SERVER_KEY_PATH
+
+# put the configured ssh host key in the container at expected path
+COPY ${SSH_CHESS_SERVER_KEY_PATH} /app/ssh_host_key
 
 COPY . .
 RUN go mod tidy
