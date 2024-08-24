@@ -4,7 +4,7 @@ services:
       context: .  # build with root dir context so can access dev certs
       dockerfile: ./ssh-server/Dockerfile
       args:
-        SSH_CHESS_SERVER_KEY_PATH: ${SSH_CHESS_SERVER_KEY_PATH}
+        SSH_CHESS_SERVER_KEY_PATH: ./certs/dev_ssh_host_key
     ports:
       - "8080:8080"
     networks:
