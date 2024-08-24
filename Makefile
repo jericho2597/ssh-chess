@@ -1,4 +1,4 @@
-COMPOSE=docker-compose
+COMPOSE=docker-compose -f docker-compose.dev.yml
 
 CHESS_ENGINE=chess-engine
 SSH_SERVER=ssh-server

@@ -56,21 +56,32 @@ jobs:
           docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.CHESS_ENGINE}}-${{ env.STAGE }} ./${{ env.CHESS_ENGINE}}
           docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.CHESS_ENGINE}}-${{ env.STAGE }}
 
-#      - name: Deploy to Lightsail
-#        env:
-#          USER: ${{ secrets.USER }}
-#          IP: ${{ secrets.IP }}
-#          KEY: ${{ secrets.KEY }}
-#        run: |
-#          mkdir -p ~/.ssh
-#          echo "${KEY}" > ~/.ssh/id_rsa
-#          chmod 600 ~/.ssh/id_rsa
-#          ssh-keyscan -H "${IP}" >> ~/.ssh/known_hosts
-#          ssh ${USER}@${IP} <<EOF
-#          set -e
-#          cd ~/ssh-chess || exit
-#          git pull origin main || exit
-#          docker-compose down || exit
-#          docker-compose up -d --build || exit
-#          docker system prune -f || exit
-#          EOF
+      - name: Deploy to Ubuntu Server
+        env:
+          USER: ${{ secrets.USER }}
+          IP: ${{ secrets.IP }}
+          KEY: ${{ secrets.KEY }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          # create SSH key file for ssh to server
+          mkdir -p ~/.ssh
+          echo "${KEY}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          ssh-keyscan -H "${IP}" >> ~/.ssh/known_hosts
+
+          # copy latest docker-compose.prod.yml to server
+          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ./docker-compose.prod.yml ${USER}@${IP}:~/ssh-chess/docker-compose.yml
+
+          # ssh to server, run docker-compose on new images
+          ssh -i ~/.ssh/id_rsa ${USER}@${IP} <<EOF
+            set -e
+            aws ecr get-login-password | docker login -u AWS --password-stdin 916447793192.dkr.ecr.ap-southeast-2.amazonaws.com
+            cd ~/ssh-chess
+            docker-compose pull
+            docker-compose down
+            docker-compose up -d
+            docker image prune -af --filter "until=24h"
+          EOF
+
+          shred -u ~/.ssh/id_rsa
