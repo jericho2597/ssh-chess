@@ -39,7 +39,7 @@ jobs:
             sqlite_db:
               - 'sqlite-db/**'
 
-  build-and-push:
+  build-and-push-and-deploy:
     needs: check_changes
     runs-on: ubuntu-latest
     steps:
@@ -89,18 +89,11 @@ jobs:
           docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.SQLITE_DB}}-${{ env.STAGE }} ./${{ env.SQLITE_DB}}
           docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.SQLITE_DB}}-${{ env.STAGE }}
 
-  deploy:
-    needs: [check_changes, build-and-push]
-    if: |
-      needs.check_changes.outputs.ssh_server == 'true' ||
-      needs.check_changes.outputs.chess_engine == 'true' ||
-      needs.check_changes.outputs.sqlite_db == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
       - name: Deploy to Ubuntu Server
+        if: |
+          needs.check_changes.outputs.ssh_server == 'true' ||
+          needs.check_changes.outputs.chess_engine == 'true' ||
+          needs.check_changes.outputs.sqlite_db == 'true'
         env:
           USER: ${{ secrets.USER }}
           IP: ${{ secrets.IP }}
