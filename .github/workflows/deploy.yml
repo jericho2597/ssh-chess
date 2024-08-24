@@ -62,6 +62,8 @@ jobs:
           IP: ${{ secrets.IP }}
           KEY: ${{ secrets.KEY }}
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          STAGE: ${{ env.STAGE }}
         run: |
           # create SSH key file for ssh to server
           mkdir -p ~/.ssh
@@ -70,13 +72,26 @@ jobs:
 
           ssh-keyscan -H "${IP}" >> ~/.ssh/known_hosts
 
+          # Set environment variables
+          echo "export ECR_REGISTRY=${ECR_REGISTRY}" >> ~/.profile
+          echo "export ECR_REPOSITORY=${ECR_REPOSITORY}" >> ~/.profile
+          echo "export STAGE=${STAGE}" >> ~/.profile
+          source ~/.profile
+
           # copy latest docker-compose.prod.yml to server
           scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ./docker-compose.prod.yml ${USER}@${IP}:~/ssh-chess/docker-compose.yml
 
           # ssh to server, run docker-compose on new images
           ssh -i ~/.ssh/id_rsa ${USER}@${IP} <<EOF
             set -e
-            aws ecr get-login-password | docker login -u AWS --password-stdin 916447793192.dkr.ecr.ap-southeast-2.amazonaws.com
+
+            # Set environment variables
+            echo "export ECR_REGISTRY=${ECR_REGISTRY}" >> ~/.profile
+            echo "export ECR_REPOSITORY=${ECR_REPOSITORY}" >> ~/.profile
+            echo "export STAGE=${STAGE}" >> ~/.profile
+            source ~/.profile
+
+            aws ecr get-login-password | docker login -u AWS --password-stdin ${ECR_REGISTRY}
             cd ~/ssh-chess
             docker-compose pull
             docker-compose down
