@@ -38,7 +38,7 @@ jobs:
         run: |
 
           # Create a temporary file with SSH host key for ssh-server
-          echo "${{ secrets.SSH_HOST_KEY }}" > ssh-host-key
+          echo "${{ secrets.SSH_SERVER_HOST_KEY }}" > ssh-host-key
           chmod 600 ssh-host-key
 
           # Build and push ssh-server
