@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'README.md'
+      - 'Makefile'
+      - 'docker-compose.dev.yml'
+      - '.gitignore'
+      - 'certs/**'
 
 env:
   AWS_REGION: ap-southeast-2
@@ -14,9 +20,28 @@ env:
   SQLITE_DB: sqlite-db
 
 jobs:
-  build-and-deploy:
+  check_changes:
     runs-on: ubuntu-latest
+    outputs:
+      ssh_server: ${{ steps.filter.outputs.ssh_server }}
+      chess_engine: ${{ steps.filter.outputs.chess_engine }}
+      sqlite_db: ${{ steps.filter.outputs.sqlite_db }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            ssh_server:
+              - 'ssh-server/**'
+            chess_engine:
+              - 'chess-engine/**'
+            sqlite_db:
+              - 'sqlite-db/**'
 
+  build-and-push:
+    needs: check_changes
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -32,11 +57,11 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build, tag, and push image to Amazon ECR
+      - name: Build and push ssh-server
+        if: needs.check_changes.outputs.ssh_server == 'true'
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-
           # Create a temporary file with SSH host key for ssh-server
           echo "${{ secrets.SSH_SERVER_HOST_KEY }}" > ssh-host-key
           chmod 600 ssh-host-key
@@ -48,13 +73,32 @@ jobs:
           # Remove the temporary file
           shred -u ssh-host-key
 
-          # Build and push sqlite-db
+      - name: Build and push chess-engine
+        if: needs.check_changes.outputs.chess_engine == 'true'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.CHESS_ENGINE}}-${{ env.STAGE }} ./${{ env.CHESS_ENGINE}}
+          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.CHESS_ENGINE}}-${{ env.STAGE }}
+
+      - name: Build and push sqlite-db
+        if: needs.check_changes.outputs.sqlite_db == 'true'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
           docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.SQLITE_DB}}-${{ env.STAGE }} ./${{ env.SQLITE_DB}}
           docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.SQLITE_DB}}-${{ env.STAGE }}
 
-          # Build and push chess-engine
-          docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.CHESS_ENGINE}}-${{ env.STAGE }} ./${{ env.CHESS_ENGINE}}
-          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.CHESS_ENGINE}}-${{ env.STAGE }}
+  deploy:
+    needs: [check_changes, build-and-push]
+    if: |
+      needs.check_changes.outputs.ssh_server == 'true' ||
+      needs.check_changes.outputs.chess_engine == 'true' ||
+      needs.check_changes.outputs.sqlite_db == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
 
       - name: Deploy to Ubuntu Server
         env:
