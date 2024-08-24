@@ -39,7 +39,7 @@ jobs:
 
           # Create a temporary file with SSH host key for ssh-server
           echo "${{ secrets.SSH_HOST_KEY }}" > ssh-host-key
-          chmod 600 ssh_host_key_temp
+          chmod 600 ssh-host-key
 
           # Build and push ssh-server
           docker build --build-arg SSH_CHESS_SERVER_KEY_PATH=ssh-host-key -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.SSH_SERVER}}-${{ env.STAGE }} -f ${{ env.SSH_SERVER}}/Dockerfile .
