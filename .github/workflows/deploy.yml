@@ -72,12 +72,6 @@ jobs:
 
           ssh-keyscan -H "${IP}" >> ~/.ssh/known_hosts
 
-          # Set environment variables
-          echo "export ECR_REGISTRY=${ECR_REGISTRY}" >> ~/.profile
-          echo "export ECR_REPOSITORY=${ECR_REPOSITORY}" >> ~/.profile
-          echo "export STAGE=${STAGE}" >> ~/.profile
-          source ~/.profile
-
           # copy latest docker-compose.prod.yml to server
           scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ./docker-compose.prod.yml ${USER}@${IP}:~/ssh-chess/docker-compose.yml
 
