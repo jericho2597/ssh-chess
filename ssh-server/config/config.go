@@ -8,7 +8,7 @@ import (
 
 // expect ssh_host_key and chess.db to be mounted in the container here
 const (
-	HostKeyPath = "/app/ssh_host_key"
+	HostKeyPath = "/certs/ssh_host_key"
 	DbPath      = "file:/data/chess.db?cache=shared&mode=rwc"
 )
 

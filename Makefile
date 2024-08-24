@@ -10,13 +10,19 @@ build:
 
 # start services and listen to logs
 .PHONY: start
-build:
+start:
 	$(COMPOSE) up
 
 # start services detached
 .PHONY: start-detached
-build:
+start-detached:
 	$(COMPOSE) up -d
+
+# Build all services
+.PHONY: stop
+stop:
+	$(COMPOSE) down
+
 
 # hot-reloads just the chess-engine container
 .PHONY: hot-reload-chess-engine
@@ -32,3 +38,7 @@ hot-reload-ssh-server:
 .PHONY: clean
 clean:
 	$(COMPOSE) down --volumes --remove-orphans
+
+.PHONY: status
+status:
+	$(COMPOSE) ps

@@ -1,30 +1,76 @@
-name: Deploy to Ubuntu Server
+name: Build, Push to ECR, and DEploy
 
 on:
   push:
     branches:
       - main
 
+env:
+  AWS_REGION: ap-southeast-2
+  ECR_REPOSITORY: ssh-chess
+  STAGE: prod
+  SSH_SERVER: ssh-server
+  CHESS_ENGINE: chess-engine
+  SQLITE_DB: sqlite-db
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy to Lightsail
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to Amazon ECR
         env:
-          USER: ${{ secrets.USER }}
-          IP: ${{ secrets.IP }}
-          KEY: ${{ secrets.KEY }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          mkdir -p ~/.ssh
-          echo "${KEY}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H "${IP}" >> ~/.ssh/known_hosts
-          ssh ${USER}@${IP} <<EOF
-          set -e
-          cd ~/ssh-chess || exit
-          git pull origin main || exit
-          docker-compose down || exit
-          docker-compose up -d --build || exit
-          docker system prune -f || exit
-          EOF
+
+          # Create a temporary file with SSH host key for ssh-server
+          echo "${{ secrets.SSH_HOST_KEY }}" > ssh-host-key
+          chmod 600 ssh_host_key_temp
+
+          # Build and push ssh-server
+          docker build --build-arg SSH_CHESS_SERVER_KEY_PATH=ssh-host-key -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.SSH_SERVER}}-${{ env.STAGE }} -f ${{ env.SSH_SERVER}}/Dockerfile .
+          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.SSH_SERVER}}-${{ env.STAGE }}
+
+          # Remove the temporary file
+          shred -u ssh-host-key
+
+          # Build and push sqlite-db
+          docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.SQLITE_DB}}-${{ env.STAGE }} ./${{ env.SQLITE_DB}}
+          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.SQLITE_DB}}-${{ env.STAGE }}
+
+          # Build and push chess-engine
+          docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.CHESS_ENGINE}}-${{ env.STAGE }} ./${{ env.CHESS_ENGINE}}
+          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.CHESS_ENGINE}}-${{ env.STAGE }}
+
+#      - name: Deploy to Lightsail
+#        env:
+#          USER: ${{ secrets.USER }}
+#          IP: ${{ secrets.IP }}
+#          KEY: ${{ secrets.KEY }}
+#        run: |
+#          mkdir -p ~/.ssh
+#          echo "${KEY}" > ~/.ssh/id_rsa
+#          chmod 600 ~/.ssh/id_rsa
+#          ssh-keyscan -H "${IP}" >> ~/.ssh/known_hosts
+#          ssh ${USER}@${IP} <<EOF
+#          set -e
+#          cd ~/ssh-chess || exit
+#          git pull origin main || exit
+#          docker-compose down || exit
+#          docker-compose up -d --build || exit
+#          docker system prune -f || exit
+#          EOF

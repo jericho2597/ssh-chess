@@ -1,4 +1,1 @@
 .env
-
-certs/
-ssh-server/certs/ssh_host_key
