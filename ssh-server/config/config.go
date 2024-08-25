@@ -6,10 +6,15 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// expect ssh_host_key and chess.db to be mounted in the container here
+// expect ssh_host_key, ssh_client_key and chess.db to be mounted in the container here
 const (
-	HostKeyPath = "/certs/ssh_host_key"
-	DbPath      = "file:/data/chess.db?cache=shared&mode=rwc"
+	DbPath = "file:/data/chess.db?cache=shared&mode=rwc"
+
+	SshServerAddress     = "0.0.0.0:22"
+	ShhServerHostKeyPath = "/certs/ssh_host_key"
+
+	HttpServerAddress = "0.0.0.0:80"
+	SshClientKeyPath  = "/certs/ssh_client_key"
 )
 
 const (

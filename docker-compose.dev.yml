@@ -5,8 +5,10 @@ services:
       dockerfile: ./ssh-server/Dockerfile
       args:
         SSH_CHESS_SERVER_KEY_PATH: ./certs/dev_ssh_host_key
+        SSH_CHESS_CLIENT_KEY_PATH: ./certs/dev_ssh_client_key
     ports:
-      - "8080:8080"
+      - "8080:22"
+      - "3000:80"
     networks:
       - internal
     depends_on:

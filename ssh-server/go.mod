@@ -8,6 +8,8 @@ require (
 	github.com/gliderlabs/ssh v0.3.6
 )
 
+require github.com/gorilla/websocket v1.5.3 // indirect
+
 require (
 	github.com/charmbracelet/lipgloss v0.4.0 // indirect
 	github.com/notnil/chess v1.9.0

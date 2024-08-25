@@ -2,7 +2,8 @@ services:
   ssh-server:
     image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:ssh-server-${STAGE}
     ports:
-      - "8080:8080"
+      - "80:80"
+      - "1337:22"
     networks:
       - internal
     depends_on:

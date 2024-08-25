@@ -2,11 +2,8 @@ package main
 
 import (
 	"context"
-	"io/ioutil"
 	"log"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -21,39 +18,37 @@ import (
 	"ssh-server/pkg/app/view"
 )
 
-func main() {
+func setupSSHServer() *ssh.Server {
 
-	log.Printf("Attempting to load host key from: %s", config.HostKeyPath)
-	hostKey, err := ioutil.ReadFile(config.HostKeyPath)
+	log.Printf("Attempting to load host key from: %s", config.ShhServerHostKeyPath)
+	hostKey, err := os.ReadFile(config.ShhServerHostKeyPath)
 	if err != nil {
 		log.Fatalf("Failed to load host key: %v", err)
 	}
 	log.Printf("Host key loaded successfully, length: %d bytes", len(hostKey))
 
 	server, err := wish.NewServer(
-		wish.WithAddress("0.0.0.0:8080"),
-		wish.WithIdleTimeout(5*time.Minute),
-		wish.WithHostKeyPath(config.HostKeyPath),
+		wish.WithAddress(config.SshServerAddress),
+		wish.WithHostKeyPath(config.ShhServerHostKeyPath),
 		wish.WithMiddleware(
-			bm.Middleware(chessMiddleware),
+			bm.Middleware(ChessMiddleware),
 			lm.Middleware(),
 		),
 	)
 	if err != nil {
-		log.Fatalf("could not create server: %s", err)
+		log.Fatalf("Could not create SSH server: %s", err)
 	}
+	return server
+}
 
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+func startSshServer(server *ssh.Server) {
+	log.Printf("Starting SSH server on %s", config.SshServerAddress)
+	if err := server.ListenAndServe(); err != nil {
+		log.Fatalf("Error starting SSH server: %s", err)
+	}
+}
 
-	log.Printf("starting server: %s", server.Addr)
-	go func() {
-		if err := server.ListenAndServe(); err != nil {
-			log.Fatalf("error starting SSH server: %s", err)
-		}
-	}()
-
-	<-done
+func shutdownSshServer(server *ssh.Server) {
 	log.Println("stopping server...")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -62,7 +57,7 @@ func main() {
 	}
 }
 
-func chessMiddleware(s ssh.Session) (tea.Model, []tea.ProgramOption) {
+func ChessMiddleware(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	pty, _, active := s.Pty()
 	if !active {
 		log.Printf("no active terminal, skipping")
