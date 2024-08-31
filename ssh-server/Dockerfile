@@ -1,6 +1,6 @@
 FROM node:14.17-alpine AS node-env
 WORKDIR /node
-COPY web ./web
+COPY ./ssh-server/web ./web
 RUN cd web && npm install --production
 
 FROM golang:1.20.5-alpine

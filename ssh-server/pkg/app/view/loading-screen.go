@@ -1,15 +1,15 @@
 package view
 
 import (
+	"fmt"
 	"ssh-server/pkg/app"
-	"ssh-server/pkg/app/ui/components"
-
-	"github.com/charmbracelet/lipgloss"
+	"time"
 )
 
 func RenderLoadingScreen(tui *app.TUI) string {
 
-	headerStr := components.RenderHeaderBanner(tui.Width)
+	app.SchedulerService.Schedule(tui.SessionId, "", 1*time.Second)
 
-	return lipgloss.JoinVertical(lipgloss.Center, headerStr, "Loading...")
+	t := time.Now()
+	return fmt.Sprintf("%s tui.SessionId", t.String())
 }

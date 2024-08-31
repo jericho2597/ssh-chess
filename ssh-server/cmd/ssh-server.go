@@ -7,8 +7,8 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/wish"
-	bm "github.com/charmbracelet/wish/bubbletea"
 	lm "github.com/charmbracelet/wish/logging"
 	"github.com/gliderlabs/ssh"
 
@@ -16,6 +16,8 @@ import (
 	"ssh-server/pkg/app"
 	"ssh-server/pkg/app/update"
 	"ssh-server/pkg/app/view"
+
+	"github.com/muesli/termenv"
 )
 
 func setupSSHServer() *ssh.Server {
@@ -27,14 +29,17 @@ func setupSSHServer() *ssh.Server {
 	}
 	log.Printf("Host key loaded successfully, length: %d bytes", len(hostKey))
 
+	bubbleteaMiddleware := MiddlewareWithColorProfile(ChessMiddleware, termenv.ANSI)
+
 	server, err := wish.NewServer(
 		wish.WithAddress(config.SshServerAddress),
 		wish.WithHostKeyPath(config.ShhServerHostKeyPath),
 		wish.WithMiddleware(
-			bm.Middleware(ChessMiddleware),
+			bubbleteaMiddleware,
 			lm.Middleware(),
 		),
 	)
+
 	if err != nil {
 		log.Fatalf("Could not create SSH server: %s", err)
 	}
@@ -67,7 +72,54 @@ func ChessMiddleware(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	viewer := view.View{}
 	updater := update.Update{}
 
-	tui := app.NewTUI(viewer, updater, pty.Window.Width, pty.Window.Height)
+	sessionId := s.Context().SessionID()
+	tui := app.NewTUI(sessionId, viewer, updater, pty.Window.Width, pty.Window.Height)
+
+	go func() {
+		<-s.Context().Done()
+		app.SessionManagerService.RemoveSession(s.Context().SessionID())
+	}()
 
 	return tui, config.TeaOptions
+}
+
+type Handler func(ssh.Session) (tea.Model, []tea.ProgramOption)
+
+func MiddlewareWithColorProfile(bth Handler, cp termenv.Profile) wish.Middleware {
+
+	return func(sh ssh.Handler) ssh.Handler {
+		lipgloss.SetColorProfile(cp)
+		return func(s ssh.Session) {
+			errc := make(chan error, 1)
+			m, opts := bth(s)
+			if m != nil {
+				opts = append(opts, tea.WithInput(s), tea.WithOutput(s))
+				p := tea.NewProgram(m, opts...)
+				_, windowChanges, _ := s.Pty()
+				go func() {
+					for {
+						select {
+						case <-s.Context().Done():
+							if p != nil {
+								p.Quit()
+							}
+						case w := <-windowChanges:
+							if p != nil {
+								p.Send(tea.WindowSizeMsg{Width: w.Width, Height: w.Height})
+							}
+						case err := <-errc:
+							if err != nil {
+								log.Print(err)
+							}
+						}
+					}
+				}()
+
+				app.SessionManagerService.AddSession(s, *p)
+
+				errc <- p.Start()
+			}
+			sh(s)
+		}
+	}
 }

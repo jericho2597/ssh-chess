@@ -24,6 +24,8 @@ type UpdaterIfc interface {
 }
 
 type TUI struct {
+	SessionId string
+
 	viewer  ViewerIfc
 	updater UpdaterIfc
 
@@ -37,11 +39,14 @@ type TUI struct {
 	ErrorMsg       string
 }
 
-func NewTUI(v ViewerIfc, u UpdaterIfc, width int, height int) *TUI {
+func NewTUI(sessionId string, v ViewerIfc, u UpdaterIfc, width int, height int) *TUI {
 
 	initialSizeSufficient := (height > config.MinHeight && width > config.MinWidth)
 
 	return &TUI{
+
+		SessionId: sessionId,
+
 		viewer:  v,
 		updater: u,
 		Game:    model.NewGame(),
