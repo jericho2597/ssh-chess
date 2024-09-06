@@ -19,6 +19,8 @@ RUN go mod tidy
 RUN go build -o servers ./cmd/.
 RUN chmod +x servers
 
+COPY ./ssh-server/test.png .
+
 COPY --from=node-env /node/web ./web
 
 EXPOSE 80

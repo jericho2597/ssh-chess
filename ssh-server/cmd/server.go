@@ -3,14 +3,10 @@ package main
 import (
 	"os"
 	"os/signal"
-	"ssh-server/pkg/app"
 	"syscall"
 )
 
 func main() {
-
-	app.NewSessionManager()
-	app.NewScheduler(app.SessionManagerService)
 
 	sshServer := setupSSHServer()
 	setupHTTPServer()
@@ -22,6 +18,5 @@ func main() {
 	go startHTTPServer()
 
 	<-done
-	app.SchedulerService.Shutdown()
 	shutdownSshServer(sshServer)
 }
