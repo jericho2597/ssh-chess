@@ -2,14 +2,11 @@ package components
 
 import (
 	"fmt"
+	"ssh-server/internal/app/board_render"
 	"ssh-server/internal/app/model"
-	"ssh-server/internal/app/styles"
-	s "ssh-server/internal/app/styles"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/lipgloss/table"
 	"github.com/notnil/chess"
 )
 
@@ -45,72 +42,43 @@ func (game *Game) View(state model.TuiState) string {
 		sb.WriteString(fmt.Sprintf("Error: %s\n", game.ErrorMsg))
 	}
 
-	sb.WriteString("\n")
-	sb.WriteString(styles.BlackBishopLightSquare8)
-	sb.WriteString("\n")
-	sb.WriteString(styles.WhiteBishopLightSquare8)
-	sb.WriteString("\n")
-	sb.WriteString(styles.BlackBishopDarkSquare8)
-	sb.WriteString("\n")
-	sb.WriteString(styles.WhiteBishopDarkSquare8)
-	sb.WriteString("\n")
-
 	return sb.String()
 }
 
 func (game *Game) renderBoard() string {
 	board := game.State.Position().Board()
-
-	table := table.New().Border(lipgloss.NormalBorder()).
-		BorderStyle(lipgloss.NewStyle().Foreground(s.Border))
+	var sb strings.Builder
 
 	for rank := 7; rank >= 0; rank-- {
-		row := make([]string, 8)
+		rankPieces := make([][]string, 6) // 6 lines per square
 		for file := 0; file < 8; file++ {
 			piece := board.Piece(chess.Square(rank*8 + file))
-			row[file] = game.getPieceChar(piece)
+			squareColor := (rank + file) % 2
+			pieceStrings := game.getPieceString(piece, squareColor == 0)
+			for i, line := range pieceStrings {
+				rankPieces[i] = append(rankPieces[i], line)
+			}
 		}
-		table = table.Row(row...)
+		for _, line := range rankPieces {
+			sb.WriteString(strings.Join(line, ""))
+			sb.WriteString("\n")
+		}
 	}
 
-	return table.Render()
+	return sb.String()
 }
 
-func (game *Game) getPieceChar(piece chess.Piece) string {
-	switch piece.Type() {
-	case chess.King:
-		if piece.Color() == chess.White {
-			return "♔"
-		}
-		return "♚"
-	case chess.Queen:
-		if piece.Color() == chess.White {
-			return "♕"
-		}
-		return "♛"
-	case chess.Rook:
-		if piece.Color() == chess.White {
-			return "♖"
-		}
-		return "♜"
-	case chess.Bishop:
-		if piece.Color() == chess.White {
-			return "♗"
-		}
-		return "♝"
-	case chess.Knight:
-		if piece.Color() == chess.White {
-			return "♘"
-		}
-		return "♞"
-	case chess.Pawn:
-		if piece.Color() == chess.White {
-			return "♙"
-		}
-		return "♟"
-	default:
-		return "·"
+func (game *Game) getPieceString(piece chess.Piece, isLightSquare bool) []string {
+
+	if piece.Type() == chess.NoPieceType {
+		return board_render.GetEmptySquareRendering(isLightSquare, 12)
 	}
+
+	pieceType := piece.Type().String()
+	pieceColor := piece.Color() == chess.White
+	size := 12
+
+	return board_render.GetPieceRendering(pieceColor, isLightSquare, size, pieceType)
 }
 
 func (game *Game) Update(msg tea.Msg) tea.Cmd {
