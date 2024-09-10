@@ -1,19 +1,17 @@
 package app
 
 import (
+	"log"
 	config "ssh-server/config"
+	"ssh-server/internal/app/board_render"
 	"ssh-server/internal/app/commands"
 	"ssh-server/internal/app/components"
 	"ssh-server/internal/app/messages"
 	"ssh-server/internal/app/model"
+	"strconv"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-)
-
-const (
-	contentMaxWidth  = 90
-	contentMaxHeight = 50
 )
 
 type TUI struct {
@@ -46,6 +44,11 @@ func NewTUI(width int, height int) *TUI {
 			Height:         height,
 			SufficientSize: initialSizeSufficient,
 			ActiveScreen:   model.LoadingScreen,
+
+			ContentWidth:  min(config.ContentMaxWidth, width),
+			ContentHeight: min(config.ContentMaxHeight, height-config.HeaderHeight),
+
+			SquareSize: board_render.CalculateSquareSize(min(config.ContentMaxWidth, width), min(config.ContentMaxHeight, height-config.HeaderHeight)),
 		},
 	}
 }
@@ -54,14 +57,16 @@ func (tui *TUI) View() string {
 
 	state := tui.State
 
+	if state.ActiveScreen == model.LoadingScreen {
+		return tui.Loading.View(state)
+	}
+
 	if !state.SufficientSize {
 		return tui.InsufficientSize.View(state)
 	}
 
 	var content string
 	switch state.ActiveScreen {
-	case model.LoadingScreen:
-		return tui.Loading.View(state)
 	case model.AboutScreen:
 		content = tui.About.View(state)
 	case model.GameScreen:
@@ -70,10 +75,9 @@ func (tui *TUI) View() string {
 		content = "Unknown screen"
 	}
 
-	contentWidth := min(contentMaxWidth, state.Width)
 	centeredContent := lipgloss.Place(
-		contentWidth,
-		contentMaxHeight,
+		state.ContentWidth,
+		state.ContentHeight,
 		lipgloss.Center,
 		lipgloss.Top,
 		content,
@@ -81,7 +85,7 @@ func (tui *TUI) View() string {
 
 	header := lipgloss.Place(
 		tui.State.Width,
-		1, // header height
+		config.HeaderHeight,
 		lipgloss.Center,
 		lipgloss.Center,
 		tui.Header.View(state),
@@ -122,11 +126,11 @@ func (tui *TUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	cmd := tea.Batch(
-		tui.About.Update(msg),
-		tui.Game.Update(msg),
-		tui.Loading.Update(msg),
-		tui.Header.Update(msg),
-		tui.InsufficientSize.Update(msg),
+		tui.About.Update(msg, tui.State),
+		tui.Game.Update(msg, tui.State),
+		tui.Loading.Update(msg, tui.State),
+		tui.Header.Update(msg, tui.State),
+		tui.InsufficientSize.Update(msg, tui.State),
 	)
 
 	return tui, cmd
@@ -136,6 +140,16 @@ func (tui *TUI) doResize(msg tea.WindowSizeMsg) {
 	tui.State.Height = msg.Height
 	tui.State.Width = msg.Width
 	tui.State.SufficientSize = tui.State.Width >= config.MinWidth && tui.State.Height >= config.MinHeight
+
+	tui.State.ContentWidth = min(config.ContentMaxWidth, msg.Width)
+	tui.State.ContentHeight = min(config.ContentMaxHeight, msg.Height-config.HeaderHeight)
+
+	tui.State.SquareSize = board_render.CalculateSquareSize(tui.State.ContentWidth, tui.State.Height)
+
+	log.Printf("Content Width: " + strconv.Itoa(tui.State.ContentWidth))
+	log.Printf("Content Height: " + strconv.Itoa(tui.State.ContentHeight))
+	log.Printf("New Square size: " + strconv.Itoa(tui.State.SquareSize))
+
 }
 
 func min(a, b int) int {

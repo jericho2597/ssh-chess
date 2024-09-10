@@ -16,7 +16,7 @@ func NewHeader() *Header {
 	return &Header{}
 }
 
-func (h *Header) Update(msg tea.Msg) tea.Cmd {
+func (h *Header) Update(msg tea.Msg, tuiState model.TuiState) tea.Cmd {
 	return nil
 }
 
@@ -24,21 +24,34 @@ func (h *Header) View(state model.TuiState) string {
 
 	return table.New().Border(lipgloss.NormalBorder()).
 		BorderStyle(lipgloss.NewStyle().Foreground(s.Border)).
-		Row(getHeaderTabString()...).Render()
+		Row(getHeaderTabStrings(state.ActiveScreen)...).Render()
 }
 
-func getHeaderTabString() []string {
+func getHeaderTabStrings(activeScreen model.Screen) []string {
 
-	raised := lipgloss.NewStyle().
+	logo := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(s.Accent)
+
+	highlighted := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(s.Primary)
 
 	muted := lipgloss.NewStyle().
 		Foreground(s.Secondary)
 
+	gameString := muted.Render(" game ")
+	aboutString := muted.Render(" about ")
+
+	if activeScreen == model.GameScreen {
+		gameString = highlighted.Render(" game ")
+	} else {
+		aboutString = highlighted.Render(" about ")
+	}
+
 	return []string{
-		s.PadX2(raised.Padding(0, 2).Render("♞ ssh chess")),
-		s.PadX2(raised.Render("g") + muted.Render(" game")),
-		s.PadX2(raised.Render("a") + muted.Render(" about")),
+		s.PadX2(logo.Padding(0, 2).Render("♜ ssh chess")),
+		s.PadX2(highlighted.Render("♞") + gameString),
+		s.PadX2(highlighted.Render("♝") + aboutString),
 	}
 }

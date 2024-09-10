@@ -49,7 +49,7 @@ thanks for checking it out!
 	)
 }
 
-func (about *About) Update(msg tea.Msg) tea.Cmd {
+func (about *About) Update(msg tea.Msg, tuiState model.TuiState) tea.Cmd {
 	return nil
 }
 

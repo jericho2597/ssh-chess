@@ -18,10 +18,18 @@ const (
 )
 
 const (
-	MinWidth  = 40
-	MinHeight = 24
+	HeaderHeight = 3
+
+	ContentMinWidth  = 64 // 8 (thinnest supported square in cells) times 8 (squares along width of board)
+	ContentMinHeight = 32 // 4 (shortest supportedsquare in cells) times 8 (squares on along side of board)
+
+	ContentMaxWidth  = 96 // 12 (widest supported square in cells) times 8 (squares along width of board)
+	ContentMaxHeight = 48 // 6 (tallest supportedsquare in cells) times 8 (squares on along side of board)
+
+	MinWidth  = ContentMinWidth
+	MinHeight = HeaderHeight + ContentMinHeight
 )
 
 var (
-	TeaOptions = []tea.ProgramOption{tea.WithAltScreen(), tea.WithOutput(os.Stderr)}
+	TeaOptions = []tea.ProgramOption{tea.WithAltScreen(), tea.WithOutput(os.Stderr), tea.WithMouseAllMotion()}
 )

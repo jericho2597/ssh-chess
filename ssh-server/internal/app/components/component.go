@@ -8,5 +8,5 @@ import (
 
 type Component interface {
 	View(state model.TuiState) string
-	Update(msg tea.Msg) tea.Cmd
+	Update(msg tea.Msg, tuiState model.TuiState) tea.Cmd
 }

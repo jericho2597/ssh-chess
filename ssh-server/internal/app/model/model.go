@@ -13,6 +13,11 @@ type TuiState struct {
 	Width          int
 	SufficientSize bool
 	ActiveScreen   Screen
+
+	ContentWidth  int
+	ContentHeight int
+
+	SquareSize int
 }
 
 func NextScreen(currentScreen Screen) Screen {

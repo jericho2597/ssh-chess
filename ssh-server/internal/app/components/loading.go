@@ -47,7 +47,7 @@ func (loading *Loading) View(state model.TuiState) string {
 		loading.typedText+cursor)
 }
 
-func (loading *Loading) Update(msg tea.Msg) tea.Cmd {
+func (loading *Loading) Update(msg tea.Msg, tuiState model.TuiState) tea.Cmd {
 	if loading.typeIndex < len(loading.text) {
 		loading.typedText = loading.text[:loading.typeIndex+1]
 		loading.typeIndex++
