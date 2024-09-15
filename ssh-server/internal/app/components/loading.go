@@ -48,6 +48,13 @@ func (loading *Loading) View(state model.TuiState) string {
 }
 
 func (loading *Loading) Update(msg tea.Msg, tuiState model.TuiState) tea.Cmd {
+
+	_, ok := msg.(messages.TickMsg)
+	if !ok {
+		// only update loading state on a tick message.
+		return nil
+	}
+
 	if loading.typeIndex < len(loading.text) {
 		loading.typedText = loading.text[:loading.typeIndex+1]
 		loading.typeIndex++

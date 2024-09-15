@@ -1,14 +1,12 @@
 package app
 
 import (
-	"log"
 	config "ssh-server/config"
 	"ssh-server/internal/app/board_render"
 	"ssh-server/internal/app/commands"
 	"ssh-server/internal/app/components"
 	"ssh-server/internal/app/messages"
 	"ssh-server/internal/app/model"
-	"strconv"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -146,9 +144,9 @@ func (tui *TUI) doResize(msg tea.WindowSizeMsg) {
 
 	tui.State.SquareSize = board_render.CalculateSquareSize(tui.State.ContentWidth, tui.State.Height)
 
-	log.Printf("Content Width: " + strconv.Itoa(tui.State.ContentWidth))
-	log.Printf("Content Height: " + strconv.Itoa(tui.State.ContentHeight))
-	log.Printf("New Square size: " + strconv.Itoa(tui.State.SquareSize))
+	// log.Printf("Content Width: " + strconv.Itoa(tui.State.ContentWidth))
+	// log.Printf("Content Height: " + strconv.Itoa(tui.State.ContentHeight))
+	// log.Printf("New Square size: " + strconv.Itoa(tui.State.SquareSize))
 
 }
 

@@ -6,6 +6,7 @@ import (
 	"ssh-server/config"
 	"ssh-server/internal/app/board_render"
 	"ssh-server/internal/app/model"
+	"strconv"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -18,6 +19,7 @@ type Game struct {
 	Input    string
 	ErrorMsg string
 
+	PlayerColor chess.Color
 	SelectedPiece *chess.Square
 
 	BlackPieceColor  lipgloss.Color
@@ -29,6 +31,8 @@ type Game struct {
 func NewGame() *Game {
 	return &Game{
 		State: chess.NewGame(),
+
+		PlayerColor: chess.White,
 
 		BlackPieceColor:  lipgloss.Color("#00050f"),
 		WhitePieceColor:  lipgloss.Color("#ffffff"),
@@ -42,16 +46,6 @@ func (game *Game) View(state model.TuiState) string {
 	var sb strings.Builder
 
 	sb.WriteString(game.renderBoard(state.SquareSize))
-
-	if game.ErrorMsg != "" {
-		sb.WriteString(fmt.Sprintf("Error: %s\n", game.ErrorMsg))
-	}
-
-	style1 := lipgloss.NewStyle().Foreground(lipgloss.Color("#00050f")).Background(lipgloss.Color("#bdaf8d"))
-	style2 := lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff")).Background(lipgloss.Color("#3d2f0a"))
-
-	sb.WriteString(style1.Render("Hello there\n"))
-	sb.WriteString(style2.Render("Hello there\n"))
 
 	return sb.String()
 }
@@ -69,7 +63,7 @@ func (game *Game) renderBoard(squareSize int) string {
 		rankPieces := make([][]string, squareHeightInCells)
 		for file := 0; file < 8; file++ {
 			piece := board.Piece(chess.Square(rank*8 + file))
-			squareColor := (rank + file) % 2
+			squareColor := (rank + file + 1) % 2
 			pieceStrings := game.getPieceString(piece, squareColor == 0, squareSize)
 			for i, line := range pieceStrings {
 				rankPieces[i] = append(rankPieces[i], line)
@@ -138,7 +132,7 @@ func (game *Game) handleMouseClick(x int, y int, tuiState model.TuiState) {
 	// gets the file from 0 (left most file) to 7 (right most file)
 	file := ((x - ((tuiState.Width - (squareSize * 8)) / 2)) / squareSize)
 	// gets the rank from 0 (top most rank) to 7 (bottom rank)
-	rank := ((y - config.HeaderHeight - ((tuiState.Height - config.HeaderHeight - squareSize*4) / 2)) / (squareSize / 2))
+	rank := 7 - ((y - config.HeaderHeight - ((tuiState.Height - config.HeaderHeight - squareSize*4) / 2)) / (squareSize / 2))
 
 	if file < 0 || file > 7 || rank < 0 || rank > 7 {
 		return // Click was outside the board
@@ -146,23 +140,51 @@ func (game *Game) handleMouseClick(x int, y int, tuiState model.TuiState) {
 
 	square := chess.Square(rank*8 + file)
 
+	log.Println("CLICKED SQUARE")
+	log.Printf(square.String())
+
+	log.Printf("file: " + strconv.Itoa(file))
+	log.Printf("rank: " + strconv.Itoa(rank))
+
 	// Now you can use this square with the chess package
 	piece := game.State.Position().Board().Piece(square)
-	if piece != chess.NoPiece {
+	if piece != chess.NoPiece && piece.Color() == game.PlayerColor {
 		// A piece was clicked
 		game.SelectedPiece = &square
 
 		log.Println(piece.String())
 	} else if game.SelectedPiece != nil {
-		// // An empty square was clicked after a piece was selected, attempt to make a move
-		// move := chess.Move{
-		// 	s1: *game.SelectedPiece,
-		// 	s2: square,
-		// }
-		// err := game.State.Move(&move)
-		// if err != nil {
-		// 	// Invalid move, handle error (e.g., display message to user)
-		// }
-		// game.SelectedPiece = nil // Clear selection after move attempt
+		
+		validMoves := game.State.ValidMoves()
+
+		for _, move := range validMoves {
+
+			if move.S1() == *game.SelectedPiece && move.S2() == square {
+
+				// Valid move found, make the move
+				err := game.State.Move(move)
+				if err != nil {
+					// Handle invalid move
+					game.ErrorMsg = "Invalid move: " + err.Error()
+					log.Println("Invalid move: ", err)
+					return
+				}
+
+				// Reset the selected piece after the move is made
+				game.SelectedPiece = nil
+
+				if game.PlayerColor == chess.White {
+					game.PlayerColor = chess.Black
+				} else {
+					game.PlayerColor = chess.White
+				}
+
+				// Clear any error messages
+				game.ErrorMsg = ""
+
+				log.Println("Move made successfully!")
+				return
+			}
+		}
 	}
 }
