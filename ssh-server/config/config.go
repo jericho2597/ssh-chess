@@ -18,7 +18,8 @@ const (
 )
 
 const (
-	HeaderHeight = 3
+	HeaderHeight = 4
+	FooterHeight = 4
 
 	ContentMinWidth  = 64 // 8 (thinnest supported square in cells) times 8 (squares along width of board)
 	ContentMinHeight = 32 // 4 (shortest supportedsquare in cells) times 8 (squares on along side of board)
@@ -27,7 +28,7 @@ const (
 	ContentMaxHeight = 48 // 6 (tallest supportedsquare in cells) times 8 (squares on along side of board)
 
 	MinWidth  = ContentMinWidth
-	MinHeight = HeaderHeight + ContentMinHeight
+	MinHeight = HeaderHeight + ContentMinHeight + FooterHeight
 )
 
 var (

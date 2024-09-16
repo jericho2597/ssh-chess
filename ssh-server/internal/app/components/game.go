@@ -1,31 +1,21 @@
 package components
 
 import (
-	"fmt"
 	"log"
 	"ssh-server/config"
 	"ssh-server/internal/app/board_render"
 	"ssh-server/internal/app/model"
-	"strconv"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/notnil/chess"
 )
 
 type Game struct {
 	State    *chess.Game
-	Input    string
-	ErrorMsg string
 
 	PlayerColor chess.Color
 	SelectedPiece *chess.Square
-
-	BlackPieceColor  lipgloss.Color
-	WhitePieceColor  lipgloss.Color
-	DarkSquareColor  lipgloss.Color
-	LightSquareColor lipgloss.Color
 }
 
 func NewGame() *Game {
@@ -33,11 +23,6 @@ func NewGame() *Game {
 		State: chess.NewGame(),
 
 		PlayerColor: chess.White,
-
-		BlackPieceColor:  lipgloss.Color("#00050f"),
-		WhitePieceColor:  lipgloss.Color("#ffffff"),
-		DarkSquareColor:  lipgloss.Color("#3d2f0a"),
-		LightSquareColor: lipgloss.Color("#bdaf8d"),
 	}
 }
 
@@ -45,9 +30,21 @@ func (game *Game) View(state model.TuiState) string {
 
 	var sb strings.Builder
 
-	sb.WriteString(game.renderBoard(state.SquareSize))
+	if(game.State.Outcome() == chess.Draw) {
+		sb.WriteString(game.renderOutcome("Draw!"))
+	} else if (game.State.Outcome() == chess.WhiteWon) {
+		sb.WriteString(game.renderOutcome("Winner!"))
+	} else if (game.State.Outcome() == chess.BlackWon) {
+		sb.WriteString(game.renderOutcome("Loser!"))
+	} else {
+		sb.WriteString(game.renderBoard(state.SquareSize))
+	}
 
 	return sb.String()
+}
+
+func (game *Game) renderOutcome(outcomeMessage string) string {
+	return outcomeMessage
 }
 
 func (game *Game) renderBoard(squareSize int) string {
@@ -81,13 +78,13 @@ func (game *Game) renderBoard(squareSize int) string {
 func (game *Game) getPieceString(piece chess.Piece, isLightSquare bool, squareSize int) []string {
 
 	if piece.Type() == chess.NoPieceType {
-		return board_render.GetEmptySquareRenderingFunc(isLightSquare, squareSize)(game.WhitePieceColor, game.BlackPieceColor, game.LightSquareColor, game.DarkSquareColor)
+		return board_render.GetEmptySquareRenderingFunc(isLightSquare, squareSize)()
 	}
 
 	pieceType := piece.Type().String()
 	pieceColor := piece.Color() == chess.White
 
-	return board_render.GetPieceRenderingFunc(pieceColor, isLightSquare, squareSize, pieceType)(game.WhitePieceColor, game.BlackPieceColor, game.LightSquareColor, game.DarkSquareColor)
+	return board_render.GetPieceRenderingFunc(pieceColor, isLightSquare, squareSize, pieceType)()
 }
 
 func (game *Game) Update(msg tea.Msg, tuiState model.TuiState) tea.Cmd {
@@ -100,25 +97,11 @@ func (game *Game) Update(msg tea.Msg, tuiState model.TuiState) tea.Cmd {
 		return nil
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "enter":
+		case "n":
 			// Process move
-			move, err := chess.UCINotation{}.Decode(game.State.Position(), game.Input)
-			if err != nil {
-				game.ErrorMsg = fmt.Sprintf("Invalid move: %v", err)
-			} else if err := game.State.Move(move); err != nil {
-				game.ErrorMsg = fmt.Sprintf("Illegal move: %v", err)
-			} else {
-				game.Input = ""
-				game.ErrorMsg = ""
-			}
-		case "backspace":
-			if len(game.Input) > 0 {
-				game.Input = game.Input[:len(game.Input)-1]
-			}
-		default:
-			if len(msg.String()) == 1 {
-				game.Input += msg.String()
-			}
+			game.State = chess.NewGame()
+			game.SelectedPiece = nil
+			game.PlayerColor = chess.White
 		}
 	}
 
@@ -132,7 +115,7 @@ func (game *Game) handleMouseClick(x int, y int, tuiState model.TuiState) {
 	// gets the file from 0 (left most file) to 7 (right most file)
 	file := ((x - ((tuiState.Width - (squareSize * 8)) / 2)) / squareSize)
 	// gets the rank from 0 (top most rank) to 7 (bottom rank)
-	rank := 7 - ((y - config.HeaderHeight - ((tuiState.Height - config.HeaderHeight - squareSize*4) / 2)) / (squareSize / 2))
+	rank := 7 - ((y - config.HeaderHeight - ((tuiState.Height - config.HeaderHeight - config.FooterHeight - squareSize*4) / 2)) / (squareSize / 2))
 
 	if file < 0 || file > 7 || rank < 0 || rank > 7 {
 		return // Click was outside the board
@@ -140,19 +123,10 @@ func (game *Game) handleMouseClick(x int, y int, tuiState model.TuiState) {
 
 	square := chess.Square(rank*8 + file)
 
-	log.Println("CLICKED SQUARE")
-	log.Printf(square.String())
-
-	log.Printf("file: " + strconv.Itoa(file))
-	log.Printf("rank: " + strconv.Itoa(rank))
-
-	// Now you can use this square with the chess package
 	piece := game.State.Position().Board().Piece(square)
 	if piece != chess.NoPiece && piece.Color() == game.PlayerColor {
-		// A piece was clicked
 		game.SelectedPiece = &square
 
-		log.Println(piece.String())
 	} else if game.SelectedPiece != nil {
 		
 		validMoves := game.State.ValidMoves()
@@ -161,28 +135,20 @@ func (game *Game) handleMouseClick(x int, y int, tuiState model.TuiState) {
 
 			if move.S1() == *game.SelectedPiece && move.S2() == square {
 
-				// Valid move found, make the move
 				err := game.State.Move(move)
 				if err != nil {
-					// Handle invalid move
-					game.ErrorMsg = "Invalid move: " + err.Error()
 					log.Println("Invalid move: ", err)
 					return
 				}
 
 				// Reset the selected piece after the move is made
 				game.SelectedPiece = nil
-
 				if game.PlayerColor == chess.White {
 					game.PlayerColor = chess.Black
 				} else {
 					game.PlayerColor = chess.White
 				}
 
-				// Clear any error messages
-				game.ErrorMsg = ""
-
-				log.Println("Move made successfully!")
 				return
 			}
 		}

@@ -22,30 +22,25 @@ func NewAbout() *About {
 
 func (about *About) View(state model.TuiState) string {
 
-	width := min(maxWidth, state.Width)
+	width := min(maxWidth, state.ContentWidth)
 
 	title := "- ssh chess -"
 	description := wordwrap.String(`
-this isn't your typical chess AI that would crush you within 7 moves.
-it's actually just a digital version of me on the chessboard.
+- playstyle - this bot has been trained exclusively on my Chess.com game history. it plays just like i do, with my playstyle and openings.
 
-here's what makes it unique:
-
-- playstyle - this AI has been trained exclusively on my Chess.com game history. it plays just like i do, with my playstyle and openings.
-
-- level - The AI reflects my current skill level. it's not trying to be magnus, just a digital clone of me. expect blunders.
+- level - the bot reflects my current skill level. it's not trying to be magnus, just a digital clone of me. expect blunders.
 
 - terminal-based - it's all SSH-based. perfect for playing a game in between deployments from your cli
 
-thanks for checking it out!
-- Jericho
 `, width)
+	signoff := "thanks for checking it out!\n- Jericho"
 
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
 		"\n",
 		lipgloss.Place(width, 1, lipgloss.Center, lipgloss.Center, styles.Bold(title)),
-		lipgloss.NewStyle().MaxWidth(width).Render(description),
+		description,
+		lipgloss.Place(width, 1, lipgloss.Center, lipgloss.Center, signoff),
 	)
 }
 

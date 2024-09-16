@@ -1,6 +1,7 @@
 package components
 
 import (
+	"ssh-server/config"
 	"ssh-server/internal/app/model"
 	s "ssh-server/internal/app/styles"
 
@@ -22,9 +23,15 @@ func (h *Header) Update(msg tea.Msg, tuiState model.TuiState) tea.Cmd {
 
 func (h *Header) View(state model.TuiState) string {
 
-	return table.New().Border(lipgloss.NormalBorder()).
+	return lipgloss.Place(
+		state.Width,
+		config.HeaderHeight,
+		lipgloss.Center,
+		lipgloss.Bottom,
+		table.New().Border(lipgloss.NormalBorder()).
 		BorderStyle(lipgloss.NewStyle().Foreground(s.Border)).
-		Row(getHeaderTabStrings(state.ActiveScreen)...).Render()
+		Row(getHeaderTabStrings(state.ActiveScreen)...).Render(),
+	)
 }
 
 func getHeaderTabStrings(activeScreen model.Screen) []string {
