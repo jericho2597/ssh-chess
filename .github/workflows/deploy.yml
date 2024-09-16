@@ -1,4 +1,4 @@
-name: Build, Push to ECR, and DEploy
+name: Deploy
 
 on:
   push:
@@ -7,17 +7,9 @@ on:
     paths-ignore:
       - 'README.md'
       - 'Makefile'
-      - 'docker-compose.dev.yml'
+      - 'docker-compose.yml'
       - '.gitignore'
       - 'certs/**'
-
-env:
-  AWS_REGION: ap-southeast-2
-  ECR_REPOSITORY: ssh-chess
-  STAGE: prod
-  SSH_SERVER: ssh-server
-  CHESS_ENGINE: chess-engine
-  SQLITE_DB: sqlite-db
 
 jobs:
   check_changes:
@@ -39,60 +31,12 @@ jobs:
             sqlite_db:
               - 'sqlite-db/**'
 
-  build-and-push-and-deploy:
+  deploy-to-server:
     needs: check_changes
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: Build and push ssh-server
-        if: needs.check_changes.outputs.ssh_server == 'true'
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        run: |
-          # Create a temporary file with SSH host key for ssh-server
-          echo "${{ secrets.SSH_SERVER_HOST_KEY }}" > ssh-host-key
-          chmod 600 ssh-host-key
-
-          # Create a temporary file with SSH client key for ssh-server web server
-          echo "${{ secrets.SSH_CLIENT_KEY }}" > ssh-client-key
-          chmod 600 ssh-client-key
-
-          # Build and push ssh-server
-          docker build --build-arg SSH_CHESS_SERVER_KEY_PATH=ssh-host-key --build-arg SSH_CHESS_CLIENT_KEY_PATH=ssh-client-key -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.SSH_SERVER}}-${{ env.STAGE }} -f ${{ env.SSH_SERVER}}/Dockerfile .
-          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.SSH_SERVER}}-${{ env.STAGE }}
-
-          # Remove the temporary file
-          shred -u ssh-host-key
-          shred -u ssh-client-key
-
-      - name: Build and push chess-engine
-        if: needs.check_changes.outputs.chess_engine == 'true'
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        run: |
-          docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.CHESS_ENGINE}}-${{ env.STAGE }} ./${{ env.CHESS_ENGINE}}
-          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.CHESS_ENGINE}}-${{ env.STAGE }}
-
-      - name: Build and push sqlite-db
-        if: needs.check_changes.outputs.sqlite_db == 'true'
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        run: |
-          docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.SQLITE_DB}}-${{ env.STAGE }} ./${{ env.SQLITE_DB}}
-          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.SQLITE_DB}}-${{ env.STAGE }}
 
       - name: Deploy to Ubuntu Server
         if: |
@@ -102,37 +46,16 @@ jobs:
         env:
           USER: ${{ secrets.USER }}
           IP: ${{ secrets.IP }}
-          KEY: ${{ secrets.KEY }}
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
-          STAGE: ${{ env.STAGE }}
+          PASSWORD: ${{ secrets.PASSWORD }}
         run: |
-          # create SSH key file for ssh to server
-          mkdir -p ~/.ssh
-          echo "${KEY}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+          sudo apt-get update && sudo apt-get install -y sshpass
 
-          ssh-keyscan -H "${IP}" >> ~/.ssh/known_hosts
-
-          # copy latest docker-compose.prod.yml to server
-          scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ./docker-compose.prod.yml ${USER}@${IP}:~/ssh-chess/docker-compose.yml
-
-          # ssh to server, run docker-compose on new images
-          ssh -i ~/.ssh/id_rsa ${USER}@${IP} <<EOF
+          sshpass -p "${PASSWORD}" ssh -o StrictHostKeyChecking=no ${USER}@${IP} <<EOF
             set -e
 
-            # Set environment variables
-            echo "export ECR_REGISTRY=${ECR_REGISTRY}" >> ~/.profile
-            echo "export ECR_REPOSITORY=${ECR_REPOSITORY}" >> ~/.profile
-            echo "export STAGE=${STAGE}" >> ~/.profile
-            source ~/.profile
-
-            aws ecr get-login-password | docker login -u AWS --password-stdin ${ECR_REGISTRY}
             cd ~/ssh-chess
-            docker-compose pull
-            docker-compose down
-            docker-compose up -d
-            docker image prune -af --filter "until=24h"
-          EOF
+            git pull origin main
 
-          shred -u ~/.ssh/id_rsa
+            # Stop the service, build, and restart it in detached mode
+            make stop build start-detached
+          EOF
