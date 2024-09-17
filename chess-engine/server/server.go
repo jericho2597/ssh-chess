@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"golang.org/x/exp/rand"
 )
 
 func init() {
@@ -22,8 +24,8 @@ func main() {
 	http.HandleFunc("/", handleRoot)
 	http.HandleFunc("/evaluate", handleEvaluate)
 
-	fmt.Println("Starting server on :8080")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	fmt.Println("Starting server on :80")
+	if err := http.ListenAndServe(":80", nil); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
@@ -72,15 +74,14 @@ func handleEvaluate(w http.ResponseWriter, r *http.Request) {
 }
 
 func evaluatePositionAsync(fen string, resultChan chan<- engine.EvaluationResponse) {
-	// Create a new Search object for this request
+
 	search := engine.Search{}
 	search.TT.Resize(engine.DefaultTTSize, engine.SearchEntrySize)
 
 	search.Setup(fen)
-	// Set up time management (e.g., 5 seconds per move)
-	search.Timer.Setup(300000, 2, 15000, 15, 15, 1000000)
+	
+	search.Timer.Setup(300000, 2, 1500, 15, getRandomMovesAhead(), 100000)
 
-	// Perform the search
 	bestMove := search.Search()
 	score := engine.EvaluatePos(&search.Pos)
 
@@ -93,4 +94,17 @@ func evaluatePositionAsync(fen string, resultChan chan<- engine.EvaluationRespon
 		Evaluations: evaluations,
 	}
 	resultChan <- result
+}
+
+func getRandomMovesAhead() uint8 {
+
+	random := rand.Intn(10)
+
+	if(random > 9) {
+		return 1
+	} else if (random > 8) {
+		return 2
+	}
+
+    return uint8(rand.Intn(4) + 3)
 }

@@ -4,7 +4,9 @@ import (
 	"log"
 	"ssh-server/config"
 	"ssh-server/internal/app/board_render"
+	"ssh-server/internal/app/messages"
 	"ssh-server/internal/app/model"
+	"ssh-server/internal/engine"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -89,10 +91,13 @@ func (game *Game) getPieceString(piece chess.Piece, isLightSquare bool, squareSi
 
 func (game *Game) Update(msg tea.Msg, tuiState model.TuiState) tea.Cmd {
 
+	log.Println("GAME MESSAGE RECEIVED")
+	log.Println(msg)
+
 	switch msg := msg.(type) {
 	case tea.MouseMsg:
 		if tea.MouseEvent(msg).Action == tea.MouseActionRelease {
-			game.handleMouseClick(msg.X, msg.Y, tuiState)
+			return game.handleMouseClick(msg.X, msg.Y, tuiState)
 		}
 		return nil
 	case tea.KeyMsg:
@@ -103,12 +108,16 @@ func (game *Game) Update(msg tea.Msg, tuiState model.TuiState) tea.Cmd {
 			game.SelectedPiece = nil
 			game.PlayerColor = chess.White
 		}
+	case messages.EngineMove:
+		// Update the board with the engine's move
+		game.UpdateBoardWithEngineMove(msg)
+		return nil
 	}
 
 	return nil
 }
 
-func (game *Game) handleMouseClick(x int, y int, tuiState model.TuiState) {
+func (game *Game) handleMouseClick(x int, y int, tuiState model.TuiState) tea.Cmd {
 
 	squareSize := tuiState.SquareSize
 
@@ -118,7 +127,7 @@ func (game *Game) handleMouseClick(x int, y int, tuiState model.TuiState) {
 	rank := 7 - ((y - config.HeaderHeight - ((tuiState.Height - config.HeaderHeight - config.FooterHeight - squareSize*4) / 2)) / (squareSize / 2))
 
 	if file < 0 || file > 7 || rank < 0 || rank > 7 {
-		return // Click was outside the board
+		return nil // Click was outside the board
 	}
 
 	square := chess.Square(rank*8 + file)
@@ -138,19 +147,51 @@ func (game *Game) handleMouseClick(x int, y int, tuiState model.TuiState) {
 				err := game.State.Move(move)
 				if err != nil {
 					log.Println("Invalid move: ", err)
-					return
+					return nil
 				}
 
 				// Reset the selected piece after the move is made
 				game.SelectedPiece = nil
-				if game.PlayerColor == chess.White {
-					game.PlayerColor = chess.Black
-				} else {
-					game.PlayerColor = chess.White
-				}
 
-				return
+				return game.makeEngineMoveCmd()
 			}
 		}
 	}
+	return nil
+}
+
+func (game *Game) makeEngineMoveCmd() tea.Cmd {
+
+	fen := game.State.FEN()
+
+	return func() tea.Msg {
+		bestMove, err := engine.GetBestMoveFromChessEngine(fen)
+
+		log.Println("BEST MOVE")
+		log.Println(bestMove)
+
+		if err != nil {
+			log.Println("Error getting move from engine: ", err)
+			return nil
+		}
+		return messages.EngineMove(bestMove)
+	}
+}
+
+func (game *Game) UpdateBoardWithEngineMove(engineMove messages.EngineMove) {
+
+	validMoves := game.State.ValidMoves()
+
+	for _, move := range validMoves {
+
+		if move.String() == string(engineMove) {
+
+			err := game.State.Move(move)
+			if err != nil {
+				log.Println("Invalid move: ", err)
+			}
+		}
+	}
+
+	game.State.Move(validMoves[0])
 }
