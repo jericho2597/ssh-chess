@@ -100,9 +100,9 @@ func getRandomMovesAhead() uint8 {
 
 	random := rand.Intn(10)
 
-	if(random > 9) {
+	if(random >= 8) {
 		return 1
-	} else if (random > 8) {
+	} else if (random >= 6) {
 		return 2
 	}
 
