@@ -26,11 +26,11 @@ func (about *About) View(state model.TuiState) string {
 
 	title := "- ssh chess -"
 	description := wordwrap.String(`
-- playstyle - this bot has been trained exclusively on my Chess.com game history. it plays just like i do, with my playstyle and openings.
+- playstyle - this bot has been trained exclusively on my Chess.com game history, copying my playstyle and openings.
 
-- level - the bot reflects my current skill level. it's not trying to be magnus, just a digital clone of me. expect blunders.
+- level - the bot reflects my current skill level. expect blunders.
 
-- terminal-based - it's all SSH-based. perfect for playing a game in between deployments from your cli
+- terminal-based - perfect for playing a game in between deployments from your cli
 
 `, width)
 	signoff := "thanks for checking it out!\n- Jericho"
