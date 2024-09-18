@@ -14,4 +14,6 @@ const (
 	WhitePieceColor =  lipgloss.Color("#ffffff")
 	DarkSquareColor =  lipgloss.Color("#21402c")
 	LightSquareColor = lipgloss.Color("#ada899")
+
+	HighlightSquareColor = lipgloss.Color("#d1c81f")
 )

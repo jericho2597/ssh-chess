@@ -61,9 +61,14 @@ func (game *Game) renderBoard(squareSize int) string {
 	for rank := 7; rank >= 0; rank-- {
 		rankPieces := make([][]string, squareHeightInCells)
 		for file := 0; file < 8; file++ {
-			piece := board.Piece(chess.Square(rank*8 + file))
+			square := chess.Square(rank*8 + file)
+			highlight := false
+			if (game.SelectedPiece != nil && square == *game.SelectedPiece) {
+				highlight = true
+			}
+			piece := board.Piece(square)
 			squareColor := (rank + file + 1) % 2
-			pieceStrings := game.getPieceString(piece, squareColor == 0, squareSize)
+			pieceStrings := game.getPieceString(piece, squareColor == 0, squareSize, highlight)
 			for i, line := range pieceStrings {
 				rankPieces[i] = append(rankPieces[i], line)
 			}
@@ -77,7 +82,7 @@ func (game *Game) renderBoard(squareSize int) string {
 	return sb.String()
 }
 
-func (game *Game) getPieceString(piece chess.Piece, isLightSquare bool, squareSize int) []string {
+func (game *Game) getPieceString(piece chess.Piece, isLightSquare bool, squareSize int, highlight bool) []string {
 
 	if piece.Type() == chess.NoPieceType {
 		return board_render.GetEmptySquareRenderingFunc(isLightSquare, squareSize)()
@@ -86,13 +91,10 @@ func (game *Game) getPieceString(piece chess.Piece, isLightSquare bool, squareSi
 	pieceType := piece.Type().String()
 	pieceColor := piece.Color() == chess.White
 
-	return board_render.GetPieceRenderingFunc(pieceColor, isLightSquare, squareSize, pieceType)()
+	return board_render.GetPieceRenderingFunc(pieceColor, isLightSquare, squareSize, pieceType)(highlight)
 }
 
 func (game *Game) Update(msg tea.Msg, tuiState model.TuiState) tea.Cmd {
-
-	log.Println("GAME MESSAGE RECEIVED")
-	log.Println(msg)
 
 	switch msg := msg.(type) {
 	case tea.MouseMsg:
