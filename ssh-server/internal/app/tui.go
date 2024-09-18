@@ -1,6 +1,7 @@
 package app
 
 import (
+	"log"
 	config "ssh-server/config"
 	"ssh-server/internal/app/board_render"
 	"ssh-server/internal/app/commands"

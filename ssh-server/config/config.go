@@ -32,5 +32,5 @@ const (
 )
 
 var (
-	TeaOptions = []tea.ProgramOption{tea.WithAltScreen(), tea.WithOutput(os.Stderr), tea.WithMouseAllMotion()}
+	TeaOptions = []tea.ProgramOption{tea.WithAltScreen(), tea.WithOutput(os.Stderr), tea.WithMouseCellMotion()}
 )
